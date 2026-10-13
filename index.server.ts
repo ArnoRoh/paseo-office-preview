@@ -1,5 +1,4 @@
-import type { PluginServerContext } from '@getpaseo/plugin/server';
-import type { PaseoApi } from '@getpaseo/client';
+import type { PluginServerContext, PluginHandlerContext } from '@getpaseo/plugin/server';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { readPreview, listFiles } from './shared/contracts';
@@ -7,7 +6,7 @@ import { documentLinks } from './shared/links';
 import { discoverFiles, resolveDocument } from './server/files';
 import { previewFile, stopReaders } from './server/preview';
 
-async function workspaceRoot(paseo: PaseoApi, id: string) {
+async function workspaceRoot(paseo: PluginHandlerContext['paseo'], id: string) {
   const workspace = await paseo.workspaces.ref(id).refresh();
   if (!workspace?.workspaceDirectory) throw new Error('This workspace is unavailable.');
   return workspace.workspaceDirectory;
