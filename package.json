@@ -1,0 +1,54 @@
+{
+  "name": "paseo-office-preview",
+  "version": "0.1.0",
+  "description": "Read Word and Excel files in a Paseo popup on desktop and mobile.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "paseo-plugin.json",
+    "npm-shrinkwrap.json",
+    "index.client.tsx",
+    "index.server.ts",
+    "client/",
+    "server/",
+    "shared/",
+    "scripts/build.mjs",
+    "README.md",
+    "OVERVIEW.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx tests/reader.test.ts",
+    "test:ui": "node --import tsx tests/browser.ts",
+    "prepack": "npm run build && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "esbuild": "0.25.12",
+    "mammoth": "1.13.0",
+    "parse5": "8.0.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "yauzl": "3.4.0"
+  },
+  "devDependencies": {
+    "@getpaseo/plugin": "0.10.2",
+    "@tanstack/react-query": "5.90.11",
+    "@types/node": "22.19.0",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.1.0",
+    "@types/yauzl": "2.10.3",
+    "jszip": "3.10.1",
+    "playwright": "1.56.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-web": "0.21.2",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "zod": "4.4.3"
+  }
+}
