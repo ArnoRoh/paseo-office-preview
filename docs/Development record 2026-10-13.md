@@ -30,10 +30,22 @@ modal and RPC APIs. It covers desktop and compact layouts, dark mode, sheet and
 page controls, corrupt files and rejected paths. Nine browser checks pass. This does not prove native
 device gestures or live Paseo integration.
 
-The live daemon is reachable and reports version 0.10.2. Its plugin catalog is
-empty and its `pluginsEnabled` setting is false. Installation and enablement are
-pending user approval. No live service was restarted. Public publication is also
-pending approval of the destination and visibility.
+The user approved live enablement, installation and a public GitHub repository.
+The daemon's plugin setting is enabled through its configuration API. No live
+service was restarted. Source is public at
+https://github.com/ArnoRoh/paseo-office-preview.
+
+Git installation initially exposed a direct type import that depended on a
+checkout-only package. The server now uses the host-provided PluginHandlerContext
+type. TypeScript and all nine parser/integration tests pass after this correction.
+The Git installation of commit 77dbc98a341ce83f0ba8d955fd15e7905da99b05 succeeded.
+The live catalog reports office-preview enabled and running; logs show Plugin ready.
+
+Live RPC checks opened synthetic DOCX, XLSX and binary XLS fixtures. The Word
+result contains five blocks. Both workbook results contain 100 rows and the
+Inventory and Summary sheets. A path outside the workspace and a corrupt Word
+file were rejected. No connected browser automation host was available for
+actual client checks.
 
 Task Mgmt has no available authenticated tool in this session. The connected tool
 catalog is empty. No new credential was created and no task row was written.
@@ -49,6 +61,7 @@ licenses are collected under `server/generated/`.
 
 ## Acceptance still needed
 
-Install on an enabled daemon, open a document from an actual agent reply, and
-check desktop and phone behavior. Confirm the compact sheet scrolls correctly.
-Then publish the reviewed source or archive to the selected sharing destination.
+Open the synthetic documents from an actual agent reply and check desktop and
+phone behavior. Confirm the compact sheet scrolls correctly and workbook tabs
+and page controls work. The user asked to submit to the Paseo plugin store after
+these tests. Store submission remains deferred pending this acceptance.
