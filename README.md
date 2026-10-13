@@ -16,11 +16,15 @@ npm run build
 paseo plugin install /absolute/path/to/paseo-office-preview
 ```
 
-Install on the machine running the Paseo daemon. When the daemon is remote,
-the path must exist on that host. The package has a preparation command for Git
-installs. After publication, a repository can be installed with
-`paseo plugin add git:OWNER/REPOSITORY`. Replace both placeholders with the
-published repository identity.
+Install directly from GitHub:
+
+```sh
+paseo plugin install github:ArnoRoh/paseo-office-preview
+```
+
+Run this against the Paseo daemon that owns your files. For a remote daemon, add
+`--host <daemon-address>`. Local source paths must exist on that daemon host.
+Git installation runs the dependency install and worker build automatically.
 
 ## Read a document
 
