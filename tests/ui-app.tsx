@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { selectPreview } from '../client/selection';
 import { OfficePanel, OfficeCard } from '../client/panel';
 
 const dark = new URLSearchParams(location.search).has('dark');
@@ -11,5 +12,5 @@ const theme: any = { colors: {
 const props: any = { theme, layout: { compact: window.innerWidth < 600, platform: 'web' }, host: { id: 'test-host', label: 'Test host' }, workspaceId: 'test-workspace', context: 'workspace' };
 createRoot(document.getElementById('root')!).render(<QueryClientProvider client={new QueryClient()}>
   <OfficePanel {...props} />
-  <OfficeCard {...props} agentId="test-agent" item={{ type: 'plugin', kind: 'office-files', version: 1, data: { workspaceId: 'test-workspace', paths: ['Reading sample.docx'] } }} timestamp={new Date()} />
+  <OfficeCard {...props} openReader={(workspaceId, path) => selectPreview(props.host.id, workspaceId, path)} agentId="test-agent" item={{ type: 'plugin', kind: 'office-files', version: 1, data: { workspaceId: 'test-workspace', paths: ['Reading sample.docx'] } }} timestamp={new Date()} />
 </QueryClientProvider>);

@@ -36,5 +36,39 @@ export async function writeFixtures(dir: string) {
   await writeFile(path.join(dir, 'Reading sample.docx'), await wordFixture());
   await writeFile(path.join(dir, 'Workbook sample.xlsx'), workbookFixture());
   await writeFile(path.join(dir, 'Legacy workbook.xls'), workbookFixture('biff8'));
+  await writeFile(path.join(dir, 'Reading sample.pdf'), pdfFixture());
+  await writeFile(path.join(dir, 'Coverage sample.xlsx'), coverageFixture());
+  await writeFile(path.join(dir, 'Broken.pdf'), 'not a PDF');
   await writeFile(path.join(dir, 'Broken.docx'), 'not a document');
+}
+
+export function pdfFixture(): Buffer {
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>',
+    ...[6, 7, 8].map(content => `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents ${content} 0 R >>`),
+    ...['BT /F1 24 Tf 72 720 Td (PDF reading sample) Tj ET', 'BT /F1 24 Tf 72 720 Td (Second page) Tj ET', '0.2 0.4 0.7 rg 72 600 200 100 re f'].map(stream => `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`),
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let text = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => { offsets.push(Buffer.byteLength(text)); text += `${index + 1} 0 obj\n${object}\nendobj\n`; });
+  const xref = Buffer.byteLength(text);
+  text += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n` + offsets.slice(1).map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
+  text += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(text);
+}
+export function coverageFixture(): Buffer {
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet([
+    ['Group coverage and timing | Synthetic preview sample'],
+    ['Company', 'Contributor', 'September timing', 'October timing', 'Status', 'Follow-up', 'Source'],
+    ['Sample company A', 'Contributor A', 'September 21 update; September 22 review; September 29 correction', 'October 12 review', 'Complete', 'Confirm final figures', 'Sample source'],
+    ['Sample company B', 'Contributor B', 'September 2 initial changes; September 14 advances; September 16 loans', 'October 15 follow-up', 'In review', 'Check remaining inputs', 'Sample source'],
+  ]);
+  sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+  sheet['!cols'] = [26, 22, 40, 30, 18, 30, 20].map(wch => ({ wch }));
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Company coverage');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([['Source events'], ['Test event']]), 'Source events');
+  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
 }

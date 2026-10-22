@@ -1,6 +1,19 @@
 {
   "id": "office-preview",
-  "description": "Read Word and Excel documents in a popup, with automatic preview buttons on agent output.",
-  "requirements": { "paseo": ">=0.10.2 <0.12.0" },
-  "build": [["npm", "ci", "--omit=dev"], ["npm", "run", "build"]]
+  "description": "Read Word, Excel and PDF documents with desktop workspace previews and compact preview sheets.",
+  "requirements": {
+    "paseo": ">=0.10.2 <0.12.0"
+  },
+  "build": [
+    [
+      "npm",
+      "ci",
+      "--omit=dev"
+    ],
+    [
+      "npm",
+      "run",
+      "build"
+    ]
+  ]
 }

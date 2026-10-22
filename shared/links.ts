@@ -1,5 +1,5 @@
 export function isOfficePath(value: string): boolean {
-  return /\.(?:docx|xlsx|xls)$/i.test(value);
+  return /\.(?:docx|xlsx|xls|pdf)$/i.test(value);
 }
 
 // Only local file references qualify. HTTP links stay with Paseo's normal renderer.
