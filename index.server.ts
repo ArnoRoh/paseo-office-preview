@@ -4,6 +4,8 @@ import path from 'node:path';
 import { readPreview, listFiles } from './shared/contracts';
 import { documentLinks } from './shared/links';
 import { discoverFiles, resolveDocument } from './server/files';
+import moduleRoot from './server/generated/module-root';
+import { locatePdfRuntime } from './server/runtime';
 import { previewFile, stopReaders } from './server/preview';
 
 async function workspaceRoot(paseo: PluginHandlerContext['paseo'], id: string) {
@@ -12,7 +14,14 @@ async function workspaceRoot(paseo: PluginHandlerContext['paseo'], id: string) {
   return workspace.workspaceDirectory;
 }
 export default function contribute(server: PluginServerContext) {
-  server.handle(readPreview, async (input, { paseo }) => previewFile(await workspaceRoot(paseo, input.workspaceId), input.path, input));
+  server.handle(readPreview, async (input, { paseo }) => {
+    const root = await workspaceRoot(paseo, input.workspaceId);
+    const runtimeRoot = /\.pdf$/i.test(input.path) ? await locatePdfRuntime(moduleRoot, async () => {
+      const { config } = await paseo.config.get();
+      return Object.values(config.plugins ?? {}).map(plugin => plugin.path);
+    }) : moduleRoot;
+    return previewFile(root, input.path, input, runtimeRoot);
+  });
   server.handle(listFiles, async ({ workspaceId }, { paseo }) => discoverFiles(await workspaceRoot(paseo, workspaceId)));
   const remove = server.on('agent.turn_ended', async ({ agent, timeline, turnId, outcome }, { paseo }) => {
     if (!agent.workspaceId || outcome.kind !== 'completed') return;

@@ -1,5 +1,6 @@
 import { Worker } from 'node:worker_threads';
 import path from 'node:path';
+import moduleRoot from './generated/module-root';
 import type { Preview, Selection } from '../shared/contracts';
 import { previewSchema } from '../shared/contracts';
 import workerSource from './generated/reader-source';
@@ -7,13 +8,13 @@ import { readDocument } from './files';
 
 const workers = new Set<Worker>();
 export function stopReaders() { for (const worker of workers) void worker.terminate(); }
-export async function previewFile(root: string, file: string, selection: Selection): Promise<Preview> {
+export async function previewFile(root: string, file: string, selection: Selection, runtimeRoot = moduleRoot): Promise<Preview> {
   if (workers.size >= 2) throw new Error('Two previews are opening. Please try again in a moment.');
   const bytes = await readDocument(root, file);
   if (workers.size >= 2) throw new Error('Two previews are opening. Please try again in a moment.');
   return new Promise((resolve, reject) => {
     const worker = new Worker(workerSource, {
-      eval: true, workerData: { bytes, name: path.basename(file), selection },
+      eval: true, workerData: { moduleRoot: runtimeRoot, bytes, name: path.basename(file), selection },
       resourceLimits: { maxOldGenerationSizeMb: 256, maxYoungGenerationSizeMb: 32, stackSizeMb: 4 },
     });
     workers.add(worker);

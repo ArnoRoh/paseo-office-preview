@@ -4,6 +4,7 @@ import { parseFragment } from 'parse5';
 import * as XLSX from 'xlsx';
 import type { Block, Preview, Run, Selection } from '../shared/contracts';
 import { limits } from '../shared/limits';
+import { pdf } from './pdf';
 import { checkZip } from './zip';
 
 interface HtmlNode { nodeName: string; value?: string; attrs?: { name: string; value: string }[]; childNodes?: HtmlNode[] }
@@ -76,16 +77,16 @@ async function word(buffer: Buffer, name: string): Promise<Preview> {
 }
 
 function spreadsheet(buffer: Buffer, name: string, selection: Selection): Preview {
-  const workbook = XLSX.read(buffer, { type: 'buffer', sheetRows: limits.rows + 1, cellHTML: false, cellStyles: false, bookVBA: false, cellFormula: true });
+  const workbook = XLSX.read(buffer, { type: 'buffer', sheetRows: limits.rows + 1, cellHTML: false, cellStyles: true, bookVBA: false, cellFormula: true });
   const sheets = workbook.SheetNames.filter((_, index) => !workbook.Workbook?.Sheets?.[index]?.Hidden).slice(0, 100);
   if (!sheets.length) throw new Error('This workbook has no visible sheets.');
-  if (selection.sheet >= sheets.length) throw new Error('This worksheet is no longer available. Reopen the workbook.');
-  const sheet = workbook.Sheets[sheets[selection.sheet]!]!;
+  if ((selection.sheet ?? 0) >= sheets.length) throw new Error('This worksheet is no longer available. Reopen the workbook.');
+  const sheet = workbook.Sheets[sheets[selection.sheet ?? 0]!]!;
   const range = XLSX.utils.decode_range(sheet['!fullref'] ?? sheet['!ref'] ?? 'A1');
   const totalRows = sheet['!ref'] ? Math.min(range.e.r + 1, limits.rows) : 0;
   const totalColumns = sheet['!ref'] ? Math.min(range.e.c + 1, limits.columns) : 0;
-  const rowStart = Math.min(selection.rowStart, Math.max(0, totalRows - 1));
-  const columnStart = Math.min(selection.columnStart, Math.max(0, totalColumns - 1));
+  const rowStart = Math.min(selection.rowStart ?? 0, Math.max(0, totalRows - 1));
+  const columnStart = Math.min(selection.columnStart ?? 0, Math.max(0, totalColumns - 1));
   let missingFormulaValue = false;
   let truncatedCells = false;
   const rows: string[][] = [];
@@ -100,13 +101,25 @@ function spreadsheet(buffer: Buffer, name: string, selection: Selection): Previe
     }
     rows.push(row);
   }
+  const endRow = rowStart + rows.length;
+  const endColumn = Math.min(totalColumns, columnStart + limits.pageColumns);
+  const merges = (sheet['!merges'] ?? []).filter(m => m.e.r >= rowStart && m.s.r < endRow && m.e.c >= columnStart && m.s.c < endColumn).slice(0, 2000).map(m => {
+    const row = Math.max(rowStart, m.s.r), column = Math.max(columnStart, m.s.c);
+    const anchor = sheet[XLSX.utils.encode_cell(m.s)] as XLSX.CellObject | undefined;
+    return { row: row - rowStart, column: column - columnStart, rowSpan: Math.min(endRow - 1, m.e.r) - row + 1, columnSpan: Math.min(endColumn - 1, m.e.c) - column + 1, text: anchor?.v === undefined ? '' : XLSX.utils.format_cell(anchor).slice(0, limits.cellText) };
+  });
+  const columnWidths = Array.from({ length: endColumn - columnStart }, (_, i) => {
+    const col = sheet['!cols']?.[columnStart + i];
+    const lengths = rows.map((row, r) => merges.some(m => r >= m.row && r < m.row + m.rowSpan && i >= m.column && i < m.column + m.columnSpan) ? 0 : (row[i]?.length ?? 0));
+    return Math.round(Math.max(60, Math.min(600, col?.wpx ?? (col?.wch ? col.wch * 7 + 12 : Math.max(100, Math.min(280, Math.max(0, ...lengths) * 7 + 24))))));
+  });
+  const numeric = rows.map((row, r) => row.map((_, c) => sheet[XLSX.utils.encode_cell({ r: rowStart + r, c: columnStart + c })]?.t === 'n'));
   return {
-    kind: 'workbook', name, sheets, sheet: selection.sheet, rows, rowStart, columnStart, totalRows, totalColumns,
+    kind: 'workbook', name, sheets, sheet: selection.sheet ?? 0, rows, rowStart, columnStart, totalRows, totalColumns, columnWidths, merges, numeric,
     warnings: [
-      'Saved cell values. Formulas are not recalculated; charts, styling and macros are not shown.',
+      'Saved cell values. Formulas are not recalculated; charts, cell styles and macros are not shown.',
       ...(range.e.r >= limits.rows || range.e.c >= limits.columns ? ['Preview is limited to the first 10,000 rows and 256 columns.'] : []),
       ...(workbook.SheetNames.length > 100 ? ['Only the first 100 visible sheets are available.'] : []),
-      ...(sheet['!merges']?.length ? ['Merged cells show their value in the first cell.'] : []),
       ...(missingFormulaValue ? ['Some formulas have no saved result and appear blank.'] : []),
       ...(truncatedCells ? ['Some long cell values are shortened to 2,000 characters.'] : []),
     ],
@@ -114,6 +127,7 @@ function spreadsheet(buffer: Buffer, name: string, selection: Selection): Previe
 }
 
 export async function parseDocument(buffer: Buffer, name: string, selection: Selection): Promise<Preview> {
+  if (/\.pdf$/i.test(name)) return pdf(buffer, name, selection);
   const zipped = buffer[0] === 0x50 && buffer[1] === 0x4b;
   if (/\.(docx|xlsx)$/i.test(name) && !zipped) throw new Error('This file is damaged, encrypted or is not the expected Office format.');
   if (/\.xls$/i.test(name) && !(buffer.subarray(0, 8).equals(Buffer.from('d0cf11e0a1b11ae1', 'hex')))) throw new Error('This file is not a supported binary Excel workbook.');

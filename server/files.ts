@@ -13,7 +13,7 @@ function contained(root: string, target: string) {
   return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative) && !blocked(relative.split(path.sep));
 }
 export async function resolveDocument(root: string, supplied: string): Promise<string> {
-  if (!supplied || supplied.includes('\0') || !isOfficePath(supplied)) throw new Error('Choose a .docx, .xlsx or .xls file.');
+  if (!supplied || supplied.includes('\0') || !isOfficePath(supplied)) throw new Error('Choose a .docx, .xlsx, .xls or .pdf file.');
   const base = await realpath(root);
   const requested = path.resolve(base, supplied);
   if (!contained(base, requested)) throw new Error('Choose a file inside this workspace.');

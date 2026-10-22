@@ -10,8 +10,9 @@ import { columnLabel } from '../shared/contracts';
 import { readDocument, discoverFiles } from '../server/files';
 import { previewFile } from '../server/preview';
 import { parseDocument } from '../server/reader';
+import { locatePdfRuntime } from '../server/runtime';
 import { checkZip } from '../server/zip';
-import { wordFixture, workbookFixture, writeFixtures } from './fixtures';
+import { wordFixture, workbookFixture, writeFixtures, pdfFixture, coverageFixture } from './fixtures';
 import contribute from '../index.server';
 import type { PluginServerContext, PluginLifecycleEvents } from '@getpaseo/plugin/server';
 import type { PaseoApi } from '@getpaseo/client';
@@ -123,5 +124,62 @@ test('completed turns append preview cards without replacing chat and resolve ne
     await hook!({ ...event, outcome: { kind: 'canceled', reason: 'test' } }, { paseo, signal: new AbortController().signal });
     assert.equal(appended.length, 1);
     await cleanup();
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('PDF worker renders pages, extracts selectable text and preserves source', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pdf-worker-'));
+  try {
+    const bytes = pdfFixture();
+    await writeFile(path.join(root, 'Reading.pdf'), bytes);
+    const firstPage = await previewFile(root, 'Reading.pdf', { ...first, page: 1 });
+    assert(firstPage.kind === 'pdf');
+    assert.equal(firstPage.pages, 3);
+    assert.match(firstPage.text, /PDF reading sample/);
+    assert.match(firstPage.uri, /^data:image\/png;base64,iVBOR/);
+    assert(firstPage.width <= 1600 && firstPage.height <= 2200);
+    const secondPage = await previewFile(root, 'Reading.pdf', { ...first, page: 2 });
+    assert(secondPage.kind === 'pdf' && secondPage.page === 2 && secondPage.text.includes('Second page'));
+    const drawing = await previewFile(root, 'Reading.pdf', { ...first, page: 3 });
+    assert(drawing.kind === 'pdf' && !drawing.text.trim() && drawing.uri !== firstPage.uri);
+    assert.deepEqual(await readFile(path.join(root, 'Reading.pdf')), bytes);
+    await assert.rejects(parseDocument(Buffer.from('invalid'), 'broken.pdf', first), /valid PDF/);
+    assert.deepEqual(documentLinks('[PDF](Reading.pdf) [remote](https://example.com/a.pdf)'), ['Reading.pdf']);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+test('workbook keeps column widths and merged titles, including page boundaries', async () => {
+  const preview = await parseDocument(coverageFixture(), 'coverage.xlsx', first);
+  assert(preview.kind === 'workbook');
+  assert.equal(preview.merges[0]?.columnSpan, 7);
+  assert.match(preview.merges[0]!.text, /Group coverage/);
+  assert(preview.columnWidths[2]! > preview.columnWidths[0]!);
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet([['Across pages']]);
+  sheet['!ref'] = 'A1:V102';
+  sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 101, c: 21 } }];
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet');
+  const bytes = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  const page = await parseDocument(bytes, 'merged.xlsx', { ...first, rowStart: 100, columnStart: 20 });
+  assert(page.kind === 'workbook');
+  assert.deepEqual(page.merges, [{ row: 0, column: 0, rowSpan: 2, columnSpan: 2, text: 'Across pages' }]);
+});
+
+test('PDF dependencies follow a managed installation after its staging directory moves', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pdf-relocation-'));
+  try {
+    const staged = path.join(root, 'staging/node_modules/pdfjs-dist/package.json');
+    const installed = path.join(root, 'installed');
+    const unrelated = path.join(root, 'unrelated');
+    for (const directory of [installed, unrelated]) {
+      await mkdir(path.join(directory, 'server/generated'), { recursive: true });
+      await mkdir(path.join(directory, 'node_modules/pdfjs-dist'), { recursive: true });
+      await writeFile(path.join(directory, 'node_modules/pdfjs-dist/package.json'), '{}');
+    }
+    await writeFile(path.join(unrelated, 'server/generated/module-root.ts'), 'export default "different-build";');
+    await writeFile(path.join(installed, 'server/generated/module-root.ts'), `export default ${JSON.stringify(staged)};`);
+    const found = await locatePdfRuntime(staged, async () => [unrelated, installed]);
+    assert.equal(found, path.join(installed, 'node_modules/pdfjs-dist/package.json'));
+    await assert.rejects(locatePdfRuntime(staged, async () => [unrelated]), /could not be located/);
+    assert.equal(await locatePdfRuntime(found, async () => { throw new Error('Local installs do not need config'); }), found);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

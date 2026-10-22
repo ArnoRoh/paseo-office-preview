@@ -1,11 +1,11 @@
 {
   "name": "paseo-office-preview",
-  "version": "0.1.0",
-  "description": "Read Word and Excel files in a Paseo popup on desktop and mobile.",
+  "version": "0.2.0",
+  "description": "Read Word, Excel and PDF files in Paseo on desktop and mobile.",
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "files": [
     "paseo-plugin.json",
@@ -18,7 +18,8 @@
     "scripts/build.mjs",
     "README.md",
     "OVERVIEW.md",
-    "LICENSE"
+    "LICENSE",
+    "!server/generated/module-root.ts"
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -28,9 +29,11 @@
     "prepack": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
+    "@napi-rs/canvas": "1.0.13",
     "esbuild": "0.25.12",
     "mammoth": "1.13.0",
     "parse5": "8.0.0",
+    "pdfjs-dist": "6.4.299",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yauzl": "3.4.0"
   },
