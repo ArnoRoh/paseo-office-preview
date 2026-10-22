@@ -1,7 +1,7 @@
 # Document preview improvements
 
 Date: 2026-10-22
-Status: Implemented and tested. Live update and user acceptance pending.
+Status: Live update complete. Actual client acceptance pending.
 
 ## Problem and decision
 
@@ -78,9 +78,11 @@ and charts are not rendered. Formulas use saved results. PDF images have a bound
 resolution; source images above eight million pixels can be omitted. Text-only
 mode does not provide OCR for scanned pages. The preview remains read-only.
 
-Request approval to replace the running office-preview plugin with this build.
-After approval, verify plugin status and RPC results, then check the intended
-client. A healthy subprocess alone does not establish user acceptance.
+The user approved publication and the live update. The running plugin uses
+commit be6c304a8bd02c36f765ee58a80a97d2daae9802. Live RPC checks passed for DOCX,
+XLSX, XLS, PDF pages, rejected workspace escapes and invalid PDFs. No daemon
+restart was needed. A connected browser automation host was unavailable, so
+actual desktop and native client acceptance is still pending.
 
 Task Mgmt capture was unavailable: connected tool discovery returned no registered
 team tools or authenticated Task Mgmt endpoint. No credential was created.
