@@ -10,6 +10,7 @@ import { columnLabel } from '../shared/contracts';
 import { readDocument, discoverFiles } from '../server/files';
 import { previewFile } from '../server/preview';
 import { parseDocument } from '../server/reader';
+import { locatePdfRuntime } from '../server/runtime';
 import { checkZip } from '../server/zip';
 import { wordFixture, workbookFixture, writeFixtures, pdfFixture, coverageFixture } from './fixtures';
 import contribute from '../index.server';
@@ -161,4 +162,24 @@ test('workbook keeps column widths and merged titles, including page boundaries'
   const page = await parseDocument(bytes, 'merged.xlsx', { ...first, rowStart: 100, columnStart: 20 });
   assert(page.kind === 'workbook');
   assert.deepEqual(page.merges, [{ row: 0, column: 0, rowSpan: 2, columnSpan: 2, text: 'Across pages' }]);
+});
+
+test('PDF dependencies follow a managed installation after its staging directory moves', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pdf-relocation-'));
+  try {
+    const staged = path.join(root, 'staging/node_modules/pdfjs-dist/package.json');
+    const installed = path.join(root, 'installed');
+    const unrelated = path.join(root, 'unrelated');
+    for (const directory of [installed, unrelated]) {
+      await mkdir(path.join(directory, 'server/generated'), { recursive: true });
+      await mkdir(path.join(directory, 'node_modules/pdfjs-dist'), { recursive: true });
+      await writeFile(path.join(directory, 'node_modules/pdfjs-dist/package.json'), '{}');
+    }
+    await writeFile(path.join(unrelated, 'server/generated/module-root.ts'), 'export default "different-build";');
+    await writeFile(path.join(installed, 'server/generated/module-root.ts'), `export default ${JSON.stringify(staged)};`);
+    const found = await locatePdfRuntime(staged, async () => [unrelated, installed]);
+    assert.equal(found, path.join(installed, 'node_modules/pdfjs-dist/package.json'));
+    await assert.rejects(locatePdfRuntime(staged, async () => [unrelated]), /could not be located/);
+    assert.equal(await locatePdfRuntime(found, async () => { throw new Error('Local installs do not need config'); }), found);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

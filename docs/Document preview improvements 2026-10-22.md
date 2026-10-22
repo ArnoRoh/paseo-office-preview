@@ -84,3 +84,16 @@ client. A healthy subprocess alone does not establish user acceptance.
 
 Task Mgmt capture was unavailable: connected tool discovery returned no registered
 team tools or authenticated Task Mgmt endpoint. No credential was created.
+
+## Managed installation correction
+
+The user approved branch publication and the live update. The first live PDF
+request found that Paseo moves the prepared checkout out of staging. The generated
+module locator still named the staging path. Word and spreadsheet requests passed.
+
+The reader now resolves a moved installation through Paseo's configuration API.
+It matches its generated build marker before it loads PDF dependencies. This also
+supports custom installation IDs. It does not read daemon credential files.
+A regression test rejects an unrelated installation and checks the moved path.
+The production-only package was moved after preparation, then compiled and used
+to render a PDF successfully. All twelve parser/integration tests pass.
